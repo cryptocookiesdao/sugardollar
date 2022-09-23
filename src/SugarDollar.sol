@@ -2,7 +2,8 @@
  * The Sugar Dollar an algorithmic stable coin
  * More info on https://cryptocookiesdao.com/
  *
- **/
+ *
+ */
 
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
