@@ -13,6 +13,6 @@ contract OracleMock {
 
     function consult(address, uint256 amountIn) external view returns (uint256 amountOut) {
         // 1 ether == 18 decimals
-        return price * amountIn / 1 ether;
+        return price;
     }
 }
