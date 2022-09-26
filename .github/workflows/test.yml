@@ -1,34 +1,41 @@
-name: test
-
-on: workflow_dispatch
+name: "test"
 
 env:
-  FOUNDRY_PROFILE: ci
+  FOUNDRY_PROFILE: "ci"
+
+on:
+  pull_request:
+    branches:
+      - "main"
+  push:
+    branches:
+      - "main"
 
 jobs:
-  check:
-    strategy:
-      fail-fast: true
-
-    name: Foundry project
-    runs-on: ubuntu-latest
+  ci:
+    runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v3
+      - name: "Check out the repo"
+        uses: "actions/checkout@v3"
         with:
-          submodules: recursive
+          submodules: "recursive"
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+      - name: "Install Foundry"
+        uses: "onbjerg/foundry-toolchain@v1"
         with:
-          version: nightly
+          version: "nightly"
 
-      - name: Run Forge build
+      - name: "Show the Foundry config"
+        run: "forge config"
+
+      - name: "Run the tests"
+        run: "forge test"
+
+      - name: "Build the contracts"
         run: |
           forge --version
           forge build --sizes
-        id: build
-
-      - name: Run Forge tests
+      - name: "Add test summary"
         run: |
-          forge test -vvv
-        id: test
+          echo "## Tests" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
