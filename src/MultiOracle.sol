@@ -68,8 +68,8 @@ contract MultiOracle {
         // update oracle twap observation
         twapOracleSUSD.update();
 
-        // compute CKIE price
-        return (twapOracleCKIE.consult(SUSD, 1 ether) * daiPrice()) / 1 ether;
+        // compute SUSD price
+        return (twapOracleSUSD.consult(SUSD, 1 ether) * daiPrice()) / 1 ether;
     }
 
     /// @dev this is not safe for computations because oracles could be stale, this function its only menat to use in front end
