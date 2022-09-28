@@ -2,9 +2,10 @@
 pragma solidity 0.8.15;
 
 import {IOracleSimple} from "./interfaces/IOracleSimple.sol";
+import {IOracle} from "./interfaces/IOracle.sol";
 import {IChainlinkFeed} from "./interfaces/IChainlinkFeed.sol";
 
-contract MultiOracle {
+contract MultiOracle is IOracle {
     IOracleSimple immutable twapOracleCKIE;
     IOracleSimple immutable twapOracleSUSD;
 
