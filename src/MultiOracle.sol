@@ -80,6 +80,6 @@ contract MultiOracle is IOracle {
         // load price from Oracle
         cookieUSD = (twapOracleCKIE.consult(CKIE, 1 ether) * uint256(maticPrice())) / 1 ether;
 
-        susdUSD = (twapOracleSUSD.consult(SUSD, 1 ether) * uint256(daiprice)) / 1e6;
+        susdUSD = (twapOracleSUSD.consult(SUSD, 1 ether) * uint256(daiprice)) / 1 ether;
     }
 }
