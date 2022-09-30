@@ -45,8 +45,10 @@ contract BasicTokenTest is Test {
         vm.expectRevert("Price <= 0");
         multiOracle.info();
         // real world data
-        feedDAI.mockData(36893488147422279069, 99910199, 1664376182, 1664376182, 36893488147422279069);
-        feedMATIC.mockData(36893488147422307128, 74462206, 1664376356, 1664376356, 36893488147422307128);
+        uint256 DAI_PRICE = 99910199;
+        uint256 MATIC_PRICE = 74462206;
+        feedDAI.mockData(36893488147422279069, int256(DAI_PRICE), 1664376182, 1664376182, 36893488147422279069);
+        feedMATIC.mockData(36893488147422307128, int256(MATIC_PRICE), 1664376356, 1664376356, 36893488147422307128);
 
         // SUSD - DAI twap price
         oracleSUSD.mockprice(0.89 ether);
@@ -54,13 +56,19 @@ contract BasicTokenTest is Test {
         oracleCKIE.mockprice(0.7 ether);
 
         assertEq(oracleSUSD.consult(SUSD, 1 ether), 0.89 ether);
-        assertEq(multiOracle.daiPrice(), 99910199);
+        assertEq(multiOracle.daiPrice(), DAI_PRICE);
         // susd in usd = 0.88920077 = usdPrice
-        uint256 usdPRICE = 0.89 ether * uint256(99910199) / 1 ether;
+        uint256 usdPRICE = 0.89 ether * uint256(DAI_PRICE) / 1 ether;
         assertEq(multiOracle.susdPrice(), usdPRICE);
 
-        usdPRICE = 0.7 ether * uint256(74462206) / 1 ether;
+        usdPRICE = 0.7 ether * uint256(MATIC_PRICE) / 1 ether;
         assertEq(multiOracle.cookiePrice(), usdPRICE);
+
+        (uint256 _daiprice, uint256 _cookieUSD, uint256 _susdUSD) = multiOracle.info();
+
+        assertEq(_cookieUSD, multiOracle.cookiePrice());
+        assertEq(_susdUSD, multiOracle.susdPrice());
+        assertEq(_daiprice, DAI_PRICE);
     }
 
     function testChainlinkOracle() public {
