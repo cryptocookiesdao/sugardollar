@@ -26,7 +26,8 @@ contract TWAPOracleSimple {
 
     constructor(address factory, address tokenA, address tokenB, uint256 _PERIOD) public {
         PERIOD = _PERIOD;
-        IUniswapV2Pair _pair = IUniswapV2Pair(UniswapV2Library.pairFor(factory, tokenA, tokenB));
+        IUniswapV2Pair _pair = IUniswapV2Pair(IUniswapV2Factory(factory).getPair(tokenA, tokenB));
+        require(address(_pair) != address(0), "pair not created");
         pair = _pair;
         token0 = _pair.token0();
         token1 = _pair.token1();
@@ -39,12 +40,17 @@ contract TWAPOracleSimple {
     }
 
     function update() external {
+        // ensure that at least one full period has passed since the last update
         (uint256 price0Cumulative, uint256 price1Cumulative, uint32 blockTimestamp) =
             UniswapV2OracleLibrary.currentCumulativePrices(address(pair));
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
 
+        if (timeElapsed < PERIOD) {
+            return;
+        }
+
         // ensure that at least one full period has passed since the last update
-        require(timeElapsed >= PERIOD, "ExampleOracleSimple: PERIOD_NOT_ELAPSED");
+        // require(timeElapsed >= PERIOD, "ExampleOracleSimple: PERIOD_NOT_ELAPSED");
 
         // overflow is desired, casting never truncates
         // cumulative price is in (uq112x112 price * seconds) units so we simply wrap it after division by time elapsed
