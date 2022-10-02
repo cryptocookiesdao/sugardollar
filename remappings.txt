@@ -4,3 +4,4 @@ forge-std/=lib/forge-std/src/
 @uniswap/lib/=lib/solidity-lib/
 @uniswap/v2-core/=lib/v2-core/
 @uniswap/v2-periphery/=lib/v2-periphery/
+solmate/=lib/solmate/src
