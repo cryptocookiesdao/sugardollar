@@ -42,7 +42,7 @@ contract BasicTokenTest is Test {
     }
 
     function testMultiOracle() public {
-        vm.expectRevert("Price <= 0");
+        vm.expectRevert(MultiOracle.Price0.selector);
         multiOracle.info();
         // real world data
         uint256 DAI_PRICE = 99910199;
@@ -72,15 +72,15 @@ contract BasicTokenTest is Test {
     }
 
     function testChainlinkOracle() public {
-        vm.expectRevert("Price <= 0");
+        vm.expectRevert(MultiOracle.Price0.selector);
         multiOracle.daiPrice();
 
         feedDAI.mockData(0, 1e8, 0, 0, 0);
-        vm.expectRevert("Round not complete");
+        vm.expectRevert(MultiOracle.RoundNotComplete.selector);
         multiOracle.daiPrice();
 
         feedDAI.mockData(3, 1e8, 1, 1, 2);
-        vm.expectRevert("Stale price");
+        vm.expectRevert(MultiOracle.StalePrice.selector);
         multiOracle.daiPrice();
 
         // real world data

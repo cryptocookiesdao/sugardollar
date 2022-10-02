@@ -15,6 +15,10 @@ contract MultiOracle is IOracle {
     address immutable CKIE;
     address immutable SUSD;
 
+    error Price0();
+    error StalePrice();
+    error RoundNotComplete();
+
     constructor(
         address _oracleCKIE,
         address _oracleSUSD,
@@ -35,9 +39,9 @@ contract MultiOracle is IOracle {
     /// @return uint256 DAI price in USD, base 1e8
     function daiPrice() public view returns (uint256) {
         (uint80 roundId, int256 price,, uint256 updatedAt, uint80 answeredInRound) = feedDAIUSD.latestRoundData();
-        require(price > 0, "Price <= 0");
-        require(answeredInRound >= roundId, "Stale price");
-        require(updatedAt > 0, "Round not complete");
+        if (price <= 0) revert Price0();
+        if (answeredInRound < roundId) revert StalePrice();
+        if (updatedAt <= 0) revert RoundNotComplete();
 
         return uint256(price);
     }
@@ -46,9 +50,9 @@ contract MultiOracle is IOracle {
     /// @return uint256 MATIC price in USD, base 1e8
     function maticPrice() public view returns (uint256) {
         (uint80 roundId, int256 price,, uint256 updatedAt, uint80 answeredInRound) = feedMATICUSD.latestRoundData();
-        require(price > 0, "Price <= 0");
-        require(answeredInRound >= roundId, "Stale price");
-        require(updatedAt > 0, "Round not complete");
+        if (price <= 0) revert Price0();
+        if (answeredInRound < roundId) revert StalePrice();
+        if (updatedAt <= 0) revert RoundNotComplete();
 
         return uint256(price);
     }
