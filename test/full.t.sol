@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 import {UnisetupTest} from "./utils/UnisetupTest.sol";
 
 import {IERC20, IERC20Burneable} from "src/interfaces/IERC20Burneable.sol";
+import {IOwnable} from "src/interfaces/IOwnable.sol";
 
 import {IOracleSimple} from "../src/interfaces/IOracleSimple.sol";
 import {IGame} from "../src/interfaces/IGame.sol";
@@ -34,6 +35,8 @@ contract FullIntegrationTest is UnisetupTest {
     BankVault treasury;
 
     SugarBank sugarBank;
+
+    address GAME;
 
     address DEPLOYER = 0xdA001205EE0E9c0a7a6Cc3FDa137008e7e5bB818;
     address user;
@@ -74,6 +77,8 @@ contract FullIntegrationTest is UnisetupTest {
 
         treasury = new BankVault(DAI);
 
+        GAME = address(new GameMock(CKIE));
+
         sugarBank = new SugarBank(
             // quicktime router
             uniswapV2Router,
@@ -81,21 +86,24 @@ contract FullIntegrationTest is UnisetupTest {
             CKIE,
             DAI,
             // game,
-            address(new GameMock(CKIE)),
+            GAME,
             address(treasury),
             address(multiOracle),
             address(collateralPolicy)
         );
 
         treasury.transferOwnership(address(sugarBank));
-
         vm.stopPrank();
+        IOwnable(SUSD).transferOwnership(address(sugarBank));
+
         vm.roll(3);
         skip(60 * 10 + 1);
     }
 
     function testTCR100PercentLimits() public {
         vm.startPrank(user);
+        sugarBank.update();
+
         deal(DAI, user, 1000 ether);
         IERC20(DAI).approve(address(sugarBank), 1000 ether);
         vm.expectRevert("Price slippage check");
@@ -124,9 +132,11 @@ contract FullIntegrationTest is UnisetupTest {
         sugarBank.redeem(510 ether);
         assertApproxEqAbs(IERC20(DAI).balanceOf(user), 498.94 ether, 1 ether, "Should have around 500 DAI");
         assertEq(sugarBank.maxBurn(), 0, "Burn limit should be 0");
+        assertApproxEqAbs(sugarBank.maxMint(), 0 ether, 5 ether, "Mint limit should around 0");
 
         skip(10 * 60 + 1);
         assertEq(sugarBank.maxBurn(), 500 ether, "Burn limit should be reset after 10 minutes");
+        assertEq(sugarBank.maxMint(), 500 ether, "Mint limit should be reset after 10 minutes");
 
         vm.stopPrank();
         vm.startPrank(address(sugarBank));
@@ -146,12 +156,13 @@ contract FullIntegrationTest is UnisetupTest {
         IERC20Burneable(DAI).mint(address(treasury), IERC20(SUSD).totalSupply() / 2);
         sugarBank.redeem(10 ether);
         assertApproxEqAbs(sugarBank.getECR(), sugarBank.BASE() / 2, 1e6, "ECR should be aroun 50%");
+        assertApproxEqAbs(IERC20(DAI).balanceOf(user), 5 ether, 0.5 ether, "Should have around 5 DAI");
+
         assertApproxEqAbs(
-            IERC20(DAI).balanceOf(user), 5 ether, 0.5 ether, "Should have around 5 DAI"
-        );
-        
-        assertApproxEqAbs(
-            IERC20(CKIE).balanceOf(user) * multiOracle.cookiePrice() / 1e8, 5 ether, 0.5 ether, "Should have around 5 USD in CKIE"
+            IERC20(CKIE).balanceOf(user) * multiOracle.cookiePrice() / 1e8,
+            5 ether,
+            0.5 ether,
+            "Should have around 5 USD in CKIE"
         );
 
         vm.stopPrank();
@@ -168,11 +179,11 @@ contract FullIntegrationTest is UnisetupTest {
 
         // must wait a few blocks for claim
         assertEq(IERC20(SUSD).balanceOf(user), 0, "Shouldnt have SUSD");
-        vm.expectRevert("Wait more blocks");
+        vm.expectRevert(SugarBank.errWaitMoreBlocks.selector);
         sugarBank.claim();
 
         vm.roll(block.number + 1);
-        vm.expectRevert("Wait more blocks");
+        vm.expectRevert(SugarBank.errWaitMoreBlocks.selector);
         sugarBank.claim();
 
         vm.roll(block.number + 1);
@@ -196,7 +207,6 @@ contract FullIntegrationTest is UnisetupTest {
         IERC20(SUSD).approve(address(sugarBank), 20 ether);
         sugarBank.redeem(IERC20(SUSD).balanceOf(user));
         assertApproxEqAbs(IERC20(DAI).balanceOf(user), 20 ether * currentECR / sugarBank.BASE(), 0.4 ether);
-        
 
         vm.stopPrank();
     }
@@ -219,15 +229,95 @@ contract FullIntegrationTest is UnisetupTest {
 
         // must wait a few blocks for claim
         assertEq(IERC20(SUSD).balanceOf(user), 0);
-        vm.expectRevert("Wait more blocks");
+        vm.expectRevert(SugarBank.errWaitMoreBlocks.selector);
         sugarBank.claim();
 
         sugarBank.mint(7.5 ether, 3 ether, 7 ether);
 
         assertApproxEqAbs(IERC20(CKIE).balanceOf(user), 7 ether, 1, "Should use 3 cookies");
         assertApproxEqAbs(IERC20(DAI).balanceOf(user), 5.05 ether, 0.1 ether, "Should use around 5 DAI");
-        
+
+        vm.roll(block.number + 2);
+        sugarBank.claim();
+
+        vm.expectRevert(SugarBank.errNothingToClaim.selector);
+        sugarBank.claim();
+
+        assertApproxEqAbs(IERC20(SUSD).balanceOf(user), 16.52 ether, 0.01 ether, "Should have around 16.52 DAI");
+
+        IERC20(SUSD).approve(address(sugarBank), type(uint256).max);
+
+        uint256 baseCkieBalance = IERC20(CKIE).balanceOf(user);
+        sugarBank.redeem(IERC20(SUSD).balanceOf(user));
+        assertApproxEqAbs(IERC20(DAI).balanceOf(user), 6.11 ether, 0.4 ether);
+
+        // multiOracle
+        // console.log((IERC20(CKIE).balanceOf(user) - 20 ether));
+        uint256 redeemCkieInUsd = (IERC20(CKIE).balanceOf(user) - baseCkieBalance) * multiOracle.cookiePrice() / 1e8;
+        assertApproxEqAbs(redeemCkieInUsd, 15.41 ether, 0.1 ether, "Should have around 15.41 in CKIE");
         vm.stopPrank();
         vm.clearMockedCalls();
+    }
+
+    // What if we have to make an update? then we have to propose a migration to a new contract
+    // This has a 7 day locktime
+    function testMigrateLocktime() public {
+        IERC20Burneable(DAI).mint(address(treasury), 100 ether);
+        // create a new vault and sugarbank
+        BankVault treasury2 = new BankVault(DAI);
+
+        SugarBank sugarBank2 = new SugarBank(
+            // quicktime router
+            uniswapV2Router,
+            SUSD,
+            CKIE,
+            DAI,
+            // game,
+            GAME,
+            address(treasury2),
+            address(multiOracle),
+            address(collateralPolicy)
+        );
+
+        treasury2.transferOwnership(address(sugarBank));
+
+        assertEq(IOwnable(SUSD).owner(), address(sugarBank));
+        assertEq(treasury.owner(), address(sugarBank));
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        sugarBank.addMigration(address(treasury), address(this));
+        vm.expectRevert("Ownable: caller is not the owner");
+        sugarBank.addMigration(SUSD, address(this));
+
+        vm.startPrank(DEPLOYER);
+        // address this is the contract, and msg.sender is the DEPLOYER
+        sugarBank.addMigration(address(treasury), address(this));
+        sugarBank.addMigration(SUSD, address(this));
+
+        vm.expectRevert(SugarBank.errInvalidMigration.selector);
+        sugarBank.execMigration(address(0));
+        vm.expectRevert(SugarBank.errMigrationTooEarly.selector);
+        sugarBank.execMigration(address(treasury));
+        vm.expectRevert(SugarBank.errMigrationTooEarly.selector);
+        sugarBank.execMigration(SUSD);
+
+        skip(3 * 24 * 60 * 60);
+        vm.expectRevert(SugarBank.errMigrationTooEarly.selector);
+        sugarBank.execMigration(address(treasury));
+        vm.expectRevert(SugarBank.errMigrationTooEarly.selector);
+        sugarBank.execMigration(SUSD);
+        skip(4 * 24 * 60 * 60 + 1);
+
+        sugarBank.execMigration(address(treasury));
+        sugarBank.execMigration(SUSD);
+        vm.stopPrank();
+
+        treasury.transferDAI(address(treasury2), treasury.totalDAI());
+        IOwnable(SUSD).transferOwnership(address(sugarBank2));
+
+        assertEq(treasury2.totalDAI(), 100 ether);
+
+        //sugarBank
+        //execMigration
     }
 }

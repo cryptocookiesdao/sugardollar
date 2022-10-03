@@ -12,6 +12,39 @@ import {IOracle} from "./interfaces/IOracle.sol";
 import {ICollateralPolicy} from "./interfaces/ICollateralPolicy.sol";
 import {IOwnable} from "./interfaces/IOwnable.sol";
 
+//                                      ___---___
+//                                ___---___---___---___
+//                          ___---___---    *    ---___---___
+//                    ___---___---    o/ 0_/  @  o ^   ---___---___
+//              ___---___--- @  i_e J-U /|  -+D O|-| (o) /   ---___---___
+//        ___---___---    __/|  //\  /|  |\  /\  |\|  |_  __--oj   ---___---___
+//   __---___---_________________________________________________________---___---__
+//   ===============================================================================
+//    ||||                          SUGAR BANK V1.0.0                          ||||
+//    |---------------------------------------------------------------------------|
+//    |___-----___-----___-----___-----___-----___-----___-----___-----___-----___|
+//    / _ \===/ _ \   / _ \===/ _ \   / _ \===/ _ \   / _ \===/ _ \   / _ \===/ _ \
+//   ( (.\ oOo /.) ) ( (.\ oOo /.) ) ( (.\ oOo /.) ) ( (.\ oOo /.) ) ( (.\ oOo /.) )
+//    \__/=====\__/   \__/=====\__/   \__/=====\__/   \__/=====\__/   \__/=====\__/
+//       |||||||         |||||||         |||||||         |||||||         |||||||
+//       |||||||         |||||||         |||||||         |||||||         |||||||
+//       |||||||         |||||||         |||||||         |||||||         |||||||
+//       |||||||         |||||||         |||||||         |||||||         |||||||
+//       |||||||         |||||||         |||||||         |||||||         |||||||
+//       |||||||         |||||||         |||||||         |||||||         |||||||
+//       |||||||         |||||||         |||||||         |||||||         |||||||
+//       |||||||         |||||||         |||||||         |||||||         |||||||
+//       (oOoOo)         (oOoOo)         (oOoOo)         (oOoOo)         (oOoOo)
+//       J%%%%%L         J%%%%%L         J%%%%%L         J%%%%%L         J%%%%%L
+//      ZZZZZZZZZ       ZZZZZZZZZ       ZZZZZZZZZ       ZZZZZZZZZ       ZZZZZZZZZ
+//     ===========================================================================
+//   __|_____________________ https://cryptocookiesdao.com/ _____________________|__
+//   _|___________________________________________________________________________|_
+//   |_____________________________________________________________________________|
+//   _______________________________________________________________________________
+//
+//                                  SUGAR BANK V1.0.0
+
 /// @title SugarBank
 /// @dev This contract manages the minting and redeeming of sUSD tokens.
 contract SugarBank is Ownable {
@@ -49,7 +82,6 @@ contract SugarBank is Ownable {
     uint256 private _maxMint;
     /// @notice path to zap DAI to CKIE
     address[] private _pathDaiCkie;
-    
 
     /// @notice mint fee, 30 = 0.3%,
     uint256 public mintFee = 30_0000;
@@ -78,17 +110,24 @@ contract SugarBank is Ownable {
 
     mapping(address => Migration) public pendingMigration;
 
-    /**
-     * EVENTS *
-     */
+    error errBurnFeeTooHigh();
+    error errInvalidMigration();
+    error errMigrationTooEarly();
+    error errNoAddressZero();
+    error errNothingToClaim();
+    error errWaitMoreBlocks();
 
+    /**
+     * EVENTS
+     */
     event UpdateLimits(uint256 _maxMint, uint256 _maxBurn);
     event TimelockMigration(Migration pendingMigration);
     event TimelockMigrate(Migration pendingMigration);
     event CollateralPolicyUpdate(address collateralPolicy);
     event OracleUpdate(address oracle);
-
-    event NameUint(string name, uint256 value);
+    event FeeUpdate(uint256 _mintFee, uint256 _burnFee);
+    event Redeem(address account, uint256 susdBurnAmount, uint256 daiAmount, uint256 mintCkieAmount);
+    event Claim(address account, uint256 susdAmount);
 
     constructor(
         address _router,
@@ -138,59 +177,59 @@ contract SugarBank is Ownable {
 
     /// @notice Update the collateral policy
     function setCollateralPolicy(address _collateralPolicy) external onlyOwner {
+        if (_collateralPolicy == address(0)) revert errNoAddressZero();
         collateralPolicy = ICollateralPolicy(_collateralPolicy);
         emit CollateralPolicyUpdate(_collateralPolicy);
     }
 
     /// @notice Update the current oracle
     function setOracle(address _oracle) external onlyOwner {
+        if (_oracle == address(0)) revert errNoAddressZero();
         oracle = IOracle(_oracle);
         emit OracleUpdate(_oracle);
     }
 
     /// @notice Update the mint&burn fees.
-    function updateBurnMintFees(uint256 _burnFee, uint256 _mintFee) external onlyOwner {
-        require(_burnFee <= 5_00_0000, "ERR: Burn fee > 5%");
-        require(_mintFee <= 5_00_0000, "ERR: Burn fee > 5%");
-        mintFee = _mintFee;
-        burnFee = _burnFee;
+    function updateBurnMintFees(uint256 burnFee_, uint256 mintFee_) external onlyOwner {
+        if (burnFee_ > 5_00_0000 || mintFee_ > 5_00_0000) {
+            revert errBurnFeeTooHigh();
+        }
+        mintFee = mintFee_;
+        burnFee = burnFee_;
+        emit FeeUpdate(mintFee_, burnFee_);
     }
 
     /// @notice Prepare a migration, this is use to transfer ownership of a contract that is own by the bank
     ///         This is useful for the migration of the contracts to a new sugarbank version
-    function migrate(address _contract, address _newOwner) external onlyOwner {
+    function addMigration(address _contract, address _newOwner) external onlyOwner {
         pendingMigration[_contract] =
             Migration({targetContract: _contract, newOwner: _newOwner, execTimestamp: block.timestamp + 7 days});
 
         emit TimelockMigration(pendingMigration[_contract]);
     }
 
-    function migrateInTimelock(address _contract) external onlyOwner {
+    function execMigration(address _contract) external onlyOwner {
         Migration memory _pendingMigration = pendingMigration[_contract];
-        require(_pendingMigration.targetContract == _contract, "ERR: Invalid migration id");
-        require(_pendingMigration.execTimestamp < block.timestamp, "ERR: wait for Migration");
-        IOwnable(_pendingMigration.targetContract).transferOwnership(_pendingMigration.newOwner);
+        if (_pendingMigration.targetContract == address(0)) revert errInvalidMigration();
+        if (_pendingMigration.execTimestamp > block.timestamp) revert errMigrationTooEarly();
+
         emit TimelockMigrate(_pendingMigration);
         delete pendingMigration[_contract];
+        IOwnable(_pendingMigration.targetContract).transferOwnership(_pendingMigration.newOwner);
     }
 
     // user functions
 
     function mintZap(uint256 _amountDAI, uint256 _minAmountOut) external {
-        emit NameUint("mintZap in", _amountDAI);
-        emit NameUint("mintZap minout", _minAmountOut);
         // get the current target collateral ratio
         uint256 _tcr = collateralPolicy.updateAndGet();
 
         uint256 _amountDAItoCkie = (_amountDAI * (BASE - _tcr)) / BASE;
 
         if (_amountDAItoCkie == 0) {
-            emit NameUint("NO HACE ZAP  minout", _minAmountOut);
             mint(_amountDAI, 0, _minAmountOut);
             return;
         }
-        
-        emit NameUint("_amountDAItoCkie", _amountDAItoCkie);
 
         DAI.safeTransferFrom(msg.sender, address(this), _amountDAItoCkie);
 
@@ -231,33 +270,20 @@ contract SugarBank is Ownable {
             }
             require(daiToTransfer != 0, "Price error");
 
-            emit NameUint("TRANSFER DAI", daiToTransfer);
-
             DAI.safeTransferFrom(msg.sender, address(TREASURY), daiToTransfer);
         } else {
             uint256 cookieUSDPrice = oracle.cookiePrice();
             amountToMint = (_amountDAI * daiPrice) / _tcr;
             uint256 targetAmount2 = (_amountCOOKIE * cookieUSDPrice) / (BASE - _tcr);
-            
-
-            emit NameUint("targetAmount", amountToMint);
-            emit NameUint("targetAmount2", targetAmount2);
 
             amountToMint = (amountToMint < targetAmount2) ? amountToMint : targetAmount2;
-
-            emit NameUint("amountToMint", amountToMint);
 
             if (amountToMint > maxMint_) {
                 amountToMint = maxMint_;
             }
 
-            emit NameUint("amountToMint", amountToMint);
-
             _amountCOOKIE = (amountToMint * (BASE - _tcr)) / cookieUSDPrice;
             _amountDAI = (amountToMint * _tcr) / (daiPrice);
-
-            emit NameUint("_amountCOOKIE", _amountCOOKIE);
-            emit NameUint("_amountDAI", _amountDAI);
 
             DAI.safeTransferFrom(msg.sender, address(TREASURY), _amountDAI);
             CKIE.burnFrom(msg.sender, _amountCOOKIE);
@@ -277,7 +303,7 @@ contract SugarBank is Ownable {
                 require((_minAmountOut * (BASE - mintFee)) / BASE <= amountToMint, "Price slippage check");
 
                 pending[msg.sender] += amountToMint;
-                waitBlock[msg.sender] = block.number + 1;
+                waitBlock[msg.sender] = block.number + 2;
 
                 // Burn & Mint limits will be updated
                 _maxMint -= amountToMint;
@@ -288,20 +314,17 @@ contract SugarBank is Ownable {
     }
 
     function claim() external {
-        claim(msg.sender);
-    }
-
-    function claim(address account) public {
-        require(account != address(0), "!address(0)");
-        uint256 _pending = pending[account];
-        require(waitBlock[account] > 0, "Nothing to claim");
-        require(waitBlock[account] < block.number, "Wait more blocks");
+        uint256 _pending = pending[msg.sender];
+        if (pending[msg.sender] == 0) revert errNothingToClaim();
+        if (waitBlock[msg.sender] > block.number) revert errWaitMoreBlocks();
 
         uint256 _out = (_pending * (BASE - mintFee)) / BASE;
-        delete pending[account];
-        delete waitBlock[account];
-        SUSD.mint(account, _out);
+        delete pending[msg.sender];
+        delete waitBlock[msg.sender];
+        SUSD.mint(msg.sender, _out);
         SUSD.mint(DEV, _pending - _out);
+
+        emit Claim(msg.sender, _pending - _out);
     }
 
     ///@notice This will burn SUSD and give DAI and cookie to te user
@@ -325,15 +348,12 @@ contract SugarBank is Ownable {
 
         unchecked {
             amount = (totalBurnAmount * (BASE - burnFee)) / BASE;
-            emit NameUint("fee SUSD", totalBurnAmount - amount);
             SUSD.transferFrom(msg.sender, address(TREASURY), totalBurnAmount - amount);
         }
-        
+
         // Effective Collateral Ratio en % con base 1e8 = 100%, need get it before burn
         uint256 _ecr = getECR();
 
-
-        emit NameUint("burn SUSD", amount);
         SUSD.burnFrom(msg.sender, amount);
 
         // oracle get DAI price in USD (chainlink)
@@ -350,11 +370,13 @@ contract SugarBank is Ownable {
             if (cookieUSDPrice < 10000) {
                 cookieUSDPrice = 10000;
             }
-            emit NameUint("cookie in USD", cookieUSDPrice);
-            emit NameUint("debo", (amount * (BASE - _ecr)) / BASE);
-            
-            amount = amount - ((daiPrice * totalDAI) / BASE);
-            GAME.sugarBankMint(msg.sender, (amount * BASE) / cookieUSDPrice);
+
+            uint256 _pendingAmount = amount - ((daiPrice * totalDAI) / BASE);
+            _pendingAmount = (_pendingAmount * BASE) / cookieUSDPrice;
+            GAME.sugarBankMint(msg.sender, _pendingAmount);
+            emit Redeem(msg.sender, amount, totalDAI, _pendingAmount);
+        } else {
+            emit Redeem(msg.sender, amount, totalDAI, 0);
         }
 
         emit UpdateLimits(_maxMint, _maxBurn);
