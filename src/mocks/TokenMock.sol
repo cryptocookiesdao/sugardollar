@@ -10,11 +10,12 @@ pragma solidity ^0.8.11;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * Token for mock porpouses
  */
-contract TokenMock is ERC20, ERC20Burnable {
+contract TokenMock is ERC20, ERC20Burnable, Ownable {
     constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) {}
 
     function burn(uint256 amount) public override {
