@@ -75,7 +75,7 @@ abstract contract UnisetupTest is Test {
         IERC20(DAI).approve(uniswapV2Router, type(uint256).max);
         IERC20(SUSD).approve(uniswapV2Router, type(uint256).max);
 
-        weth.call{value: 10369.58540543 ether}("");
+        WETH(payable(weth)).deposit{value: 10369.58540543 ether}();
         IERC20Burneable(CKIE).mint(address(this), 12325.40694347 ether);
 
         IUniswapV2Router02(uniswapV2Router).addLiquidity(
@@ -90,7 +90,7 @@ abstract contract UnisetupTest is Test {
         );
 
         IERC20Burneable(DAI).mint(address(this), 111551 ether);
-        weth.call{value: 145978 ether}("");
+        WETH(payable(weth)).deposit{value: 145978 ether}();
         IUniswapV2Router02(uniswapV2Router).addLiquidity(
             weth, DAI, 145978 ether, 111551 ether, 145978 ether, 111551 ether, address(this), block.timestamp + 60
         );
@@ -113,7 +113,14 @@ abstract contract UnisetupTest is Test {
         IERC20Burneable(SUSD).mint(address(this), 75.66848 ether);
 
         IUniswapV2Router02(uniswapV2Router).addLiquidity(
-            CKIE, SUSD, 105.06838632 ether, 75.66848 ether, 105.06838632 ether, 75.66848 ether, address(this), block.timestamp + 60
+            CKIE,
+            SUSD,
+            105.06838632 ether,
+            75.66848 ether,
+            105.06838632 ether,
+            75.66848 ether,
+            address(this),
+            block.timestamp + 60
         );
 
         // 0x71acf87C1F35fC1E3ec7C8A8dA302724Bdf768b4, 0x18669eb6c7dFc21dCdb787fEb4B3F1eBb3172400, 0xc21b423350BCe22097957A043068D15E62eb33DC
