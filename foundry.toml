@@ -2,7 +2,9 @@
 src = 'src'
 out = 'out'
 libs = ['lib']
-optimizer_runs = 20_000
+optimizer = true
+optimizer_runs = 1000000
+
 
 [rpc_endpoints]
 polygon = "${RPC_POLYGON}"
