@@ -1,3 +1,9 @@
+/**
+ * This is the bank vault for Sugar Dollar (an algorithmic stable coin) treasury
+ * More info on https://cryptocookiesdao.com/
+ *
+ *
+ */
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 

@@ -1,3 +1,11 @@
+/**
+ * This is a uniswap modified oracle for the Sugar Dollar an algorithmic stable coin
+ * More info on https://cryptocookiesdao.com/
+ *
+ *
+ */
+
+// SPDX-License-Identifier: MIT
 pragma solidity =0.6.6;
 
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
