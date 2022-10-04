@@ -1,0 +1,128 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_oracleCKIE",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_oracleSUSD",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_feedDAI",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_feedMATIC",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_CKIE",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_SUSD",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "Price0",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RoundNotComplete",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "StalePrice",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "cookiePrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "daiPrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "info",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "daiprice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "cookieUSD",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "susdUSD",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "maticPrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "susdPrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
