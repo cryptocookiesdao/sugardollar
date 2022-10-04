@@ -106,7 +106,7 @@ contract FullIntegrationTest is UnisetupTest {
 
         deal(DAI, user, 1000 ether);
         IERC20(DAI).approve(address(sugarBank), 1000 ether);
-        vm.expectRevert("Price slippage check");
+        vm.expectRevert(SugarBank.errSlippageCheck.selector);
         sugarBank.mintZap(1000 ether, 900 ether);
 
         sugarBank.mintZap(500 ether, 497 ether);

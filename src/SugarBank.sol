@@ -116,6 +116,10 @@ contract SugarBank is Ownable {
     error errNoAddressZero();
     error errNothingToClaim();
     error errWaitMoreBlocks();
+    error errMaxMintReach();
+    error errMaxBurnReach();
+    error errSlippageCheck();
+    error errPriceError();
 
     /**
      * EVENTS
@@ -191,9 +195,7 @@ contract SugarBank is Ownable {
 
     /// @notice Update the mint&burn fees.
     function updateBurnMintFees(uint256 burnFee_, uint256 mintFee_) external onlyOwner {
-        if (burnFee_ > 5_00_0000 || mintFee_ > 5_00_0000) {
-            revert errBurnFeeTooHigh();
-        }
+        if (burnFee_ > 5_00_0000 || mintFee_ > 5_00_0000) revert errBurnFeeTooHigh();
         mintFee = mintFee_;
         burnFee = burnFee_;
         emit FeeUpdate(mintFee_, burnFee_);
@@ -244,7 +246,7 @@ contract SugarBank is Ownable {
         _update();
         // cache mint limits
         uint256 maxMint_ = _maxMint;
-        require(maxMint_ != 0, "Max mint per interval reach");
+        if (maxMint_ == 0) revert errMaxMintReach();
         // get the current target collateral ratio
         uint256 _tcr = collateralPolicy.updateAndGet();
         // get de DAI price in USD (base 8)
@@ -259,16 +261,17 @@ contract SugarBank is Ownable {
             // _maxMint, it will be the _maxMint.
 
             // daiPrice is in base 1e8 thats why * 1e8
-            amountToMint = (_amountDAI * daiPrice) / 1e8;
+            amountToMint = (_amountDAI * daiPrice) / BASE;
 
             // Amount of DAI to back the new SUSD
             uint256 daiToTransfer = _amountDAI;
 
             if (amountToMint > maxMint_) {
                 amountToMint = maxMint_;
-                daiToTransfer = (amountToMint * 1e8) / daiPrice;
+                daiToTransfer = (amountToMint * BASE) / daiPrice;
             }
-            require(daiToTransfer != 0, "Price error");
+
+            if (daiToTransfer == 0) revert errPriceError();
 
             DAI.safeTransferFrom(msg.sender, address(TREASURY), daiToTransfer);
         } else {
@@ -285,22 +288,17 @@ contract SugarBank is Ownable {
             _amountCOOKIE = (amountToMint * (BASE - _tcr)) / cookieUSDPrice;
             _amountDAI = (amountToMint * _tcr) / (daiPrice);
 
+            if (_amountDAI == 0) revert errPriceError();
             DAI.safeTransferFrom(msg.sender, address(TREASURY), _amountDAI);
-            CKIE.burnFrom(msg.sender, _amountCOOKIE);
+
+            if (_amountCOOKIE > 0) {
+                CKIE.burnFrom(msg.sender, _amountCOOKIE);
+            }
         }
 
         if (amountToMint > 0) {
             unchecked {
-                /*
-                uint256 _out = (amountToMint * (BASE - mintFee)) / BASE;
-                require(_minAmountOut <= _out, "Price slippage check");
-                SUSD.mint(msg.sender, _out);
-                if (amountToMint > _out) {
-                    SUSD.mint(DEV, amountToMint - _out);
-                }
-                */
-
-                require((_minAmountOut * (BASE - mintFee)) / BASE <= amountToMint, "Price slippage check");
+                if ((_minAmountOut * (BASE - mintFee)) / BASE > amountToMint) revert errSlippageCheck();
 
                 pending[msg.sender] += amountToMint;
                 waitBlock[msg.sender] = block.number + 2;
@@ -322,6 +320,7 @@ contract SugarBank is Ownable {
         delete pending[msg.sender];
         delete waitBlock[msg.sender];
         SUSD.mint(msg.sender, _out);
+        // fee to mantein the protocol
         SUSD.mint(DEV, _pending - _out);
 
         emit Claim(msg.sender, _pending - _out);
@@ -329,11 +328,11 @@ contract SugarBank is Ownable {
 
     ///@notice This will burn SUSD and give DAI and cookie to te user
     function redeem(uint256 amount) external {
-        require(amount != 0, "ERR: Amount is 0");
+        if (amount == 0) revert errPriceError();
         _update();
         // cache max burn limits
         uint256 maxBurn_ = _maxBurn;
-        require(maxBurn_ != 0, "Max mint per interval reach");
+        if (maxBurn_ == 0) revert errMaxBurnReach();
 
         if (amount > maxBurn_) {
             amount = maxBurn_;
@@ -344,26 +343,28 @@ contract SugarBank is Ownable {
             // maxMint += amount;
         }
 
+        // Effective Collateral Ratio en % con base 1e8 = 100%, need get it before burn
+        uint256 _ecr = getECR();
+
         uint256 totalBurnAmount = amount;
 
         unchecked {
             amount = (totalBurnAmount * (BASE - burnFee)) / BASE;
-            SUSD.transferFrom(msg.sender, address(TREASURY), totalBurnAmount - amount);
+            // fee to mantein the protocol
+            SUSD.transferFrom(msg.sender, address(DEV), totalBurnAmount - amount);
         }
-
-        // Effective Collateral Ratio en % con base 1e8 = 100%, need get it before burn
-        uint256 _ecr = getECR();
 
         SUSD.burnFrom(msg.sender, amount);
 
         // oracle get DAI price in USD (chainlink)
         uint256 daiPrice = oracle.daiPrice();
 
-        // total DAI en base 1e18
-        // 1e18 * 1e8 / 1e6 * 100 =
+        // total DAI
         uint256 totalDAI = (amount * _ecr) / BASE;
 
-        TREASURY.transferDAI(msg.sender, totalDAI);
+        if (totalDAI != 0) {
+            TREASURY.transferDAI(msg.sender, totalDAI);
+        }
         if (_ecr < BASE) {
             uint256 cookieUSDPrice = oracle.cookiePrice();
             // min cookie USD price = 10000
