@@ -211,6 +211,70 @@ contract FullIntegrationTest is UnisetupTest {
         vm.stopPrank();
     }
 
+    function testTCR75PercentManual() public {
+        address trader = makeAddr("trader");
+        deal(DAI, trader, 20 ether);
+        vm.startPrank(trader);
+
+        IERC20(DAI).approve(uniswapV2Router, type(uint256).max);
+
+        address[] memory _path = new address[](2);
+        _path[0] = address(DAI);
+        _path[1] = address(SUSD);
+
+        uint256 _tcr = collateralPolicy.updateAndGet();
+
+        // enough to move test liquidity
+        IUniswapV2Router02(uniswapV2Router).swapExactTokensForTokens(20 ether, 0, _path, trader, block.timestamp + 60);
+        skip(10 * 60);
+        assertEq(multiOracle.susdPrice(), 133614152);
+
+        while (_tcr > 75_00_0000) {
+            skip(10 * 60);
+            _tcr = collateralPolicy.updateAndGet();
+        }
+        vm.stopPrank();
+
+        deal(DAI, user, 20 ether);
+        deal(CKIE, user, 5 ether);
+
+        vm.startPrank(user);
+        IERC20(DAI).approve(address(sugarBank), 10 ether);
+        IERC20(CKIE).approve(address(sugarBank), 5 ether);
+        sugarBank.mint(10 ether, 5 ether, 5 ether);
+
+        vm.roll(block.number + 2);
+        sugarBank.claim();
+
+        assertGt(IERC20(SUSD).balanceOf(user), 12 ether, "Should have more than 12 SUSD");
+        assertEq(IERC20(CKIE).balanceOf(user), 0, "Should spend all cookies");
+        assertGt(IERC20(DAI).balanceOf(user), 10 ether, "Should spend less than 10 DAI");
+        vm.stopPrank();
+
+        address otherUser = makeAddr("otherUser");
+        deal(DAI, otherUser, 10 ether);
+        deal(CKIE, otherUser, 10 ether);
+
+        vm.startPrank(otherUser);
+        IERC20(DAI).approve(address(sugarBank), 10 ether);
+        IERC20(CKIE).approve(address(sugarBank), 10 ether);
+        sugarBank.mint(10 ether, 10 ether, 5 ether);
+
+        vm.roll(block.number + 2);
+        sugarBank.claim();
+
+        assertGt(IERC20(SUSD).balanceOf(otherUser), 12 ether, "Should have more than 12 SUSD");
+        assertApproxEqAbs(IERC20(DAI).balanceOf(otherUser), 0, 10, "Shouldnt spend 10 DAI");
+        assertGt(IERC20(CKIE).balanceOf(otherUser), 4.6 ether, "Shouldnt spend all cookies");
+
+        // 25% of susd owned by user in cookies
+        uint256 ckieVals = (IERC20(SUSD).balanceOf(otherUser) * 1e8 / 4) / multiOracle.cookiePrice();
+        // 10 ether - current ckie balance is because otherUser start with 10 ether ckie
+        assertApproxEqAbs(ckieVals, 10 ether - IERC20(CKIE).balanceOf(otherUser), 0.1 ether);
+
+        vm.stopPrank();
+    }
+
     function testTCR75Percent() public {
         vm.mockCall(
             address(collateralPolicy),
