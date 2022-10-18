@@ -12,7 +12,6 @@ import {Owned} from "solmate/auth/Owned.sol";
 import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
 
 contract BankVault is Owned {
-    
     IERC20 public immutable DAI;
 
     constructor(address _dai) Owned(msg.sender) {
@@ -23,7 +22,7 @@ contract BankVault is Owned {
         return DAI.balanceOf(address(this));
     }
 
-    // Transfer back Collateral Token (DAI) to account        
+    // Transfer back Collateral Token (DAI) to account
     function transferDAI(address account, uint256 amount) external onlyOwner returns (uint256) {
         /// @dev by definition DAI will always work or revert, thats thy i dont use a SafeTransferLib.
         /// @dev please see https://github.com/makerdao/dss/blob/master/src/dai.sol#L89

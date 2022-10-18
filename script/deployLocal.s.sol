@@ -11,7 +11,6 @@ import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 import {IGame} from "src/interfaces/IGame.sol";
 
 contract LocalDeployScript is Script {
-
     address constant feedDAI = 0x4746DeC9e833A82EC7C2C1356372CcF2cfcD2F3D;
     address constant feedMATIC = 0xAB594600376Ec9fD91F8e885dADF0CE036862dE0;
 
@@ -24,7 +23,6 @@ contract LocalDeployScript is Script {
     address constant uniswapV2Router = 0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff;
     address constant uniswapV2Factory = 0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32;
 
-
     address constant oracleCKIE = 0x527Ae6049BDF594f45893df13cdD057A85E809F0;
     address constant oracleSUSD = 0x1a8a1DbD56D2b2A06309D519d242153c749caF58;
 
@@ -32,7 +30,7 @@ contract LocalDeployScript is Script {
 
     function run() public {
         vm.startBroadcast();
-        
+
         address multiOracle = address(new MultiOracle(oracleCKIE, oracleSUSD, feedDAI, feedMATIC, CKIE, SUSD));
 
         address collateralPolicy = address(new CollateralPolicy(address(multiOracle)));
@@ -57,7 +55,6 @@ contract LocalDeployScript is Script {
         // allow bank to mint cookies
         IGame(GAME).setSugarBankMinter(address(sugarBank));
         vm.stopBroadcast();
-        
 
         console.log("SugarBank:", address(sugarBank));
         console.log("treasury:", address(treasury));

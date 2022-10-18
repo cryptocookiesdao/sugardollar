@@ -217,12 +217,16 @@ contract SugarBank is Owned(msg.sender) {
         bool success;
         bytes memory response;
         if (isSolmate) {
-            (success, response) = _pendingMigration.targetContract.call(abi.encodeWithSignature("setOwner(address)", _pendingMigration.newOwner));
+            (success, response) = _pendingMigration.targetContract.call(
+                abi.encodeWithSignature("setOwner(address)", _pendingMigration.newOwner)
+            );
         } else {
-            (success, response) = _pendingMigration.targetContract.call(abi.encodeWithSignature("transferOwnership(address)", _pendingMigration.newOwner));
+            (success, response) = _pendingMigration.targetContract.call(
+                abi.encodeWithSignature("transferOwnership(address)", _pendingMigration.newOwner)
+            );
         }
         if (!success) {
-            revert errOwnershipTransfer(response); 
+            revert errOwnershipTransfer(response);
         }
     }
 
