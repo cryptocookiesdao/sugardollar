@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import {Owned} from "solmate/auth/Owned.sol";
+import {IUniswapV2Router02} from "v2-periphery/interfaces/IUniswapV2Router02.sol";
 
 import {IERC20, IERC20Burneable} from "./interfaces/IERC20Burneable.sol";
 import {IGame} from "./interfaces/IGame.sol";
@@ -46,8 +45,7 @@ import {ICollateralPolicy} from "./interfaces/ICollateralPolicy.sol";
 
 /// @title SugarBank
 /// @dev This contract manages the minting and redeeming of sUSD tokens.
-contract SugarBank is Ownable {
-
+contract SugarBank is Owned(msg.sender) {
     IUniswapV2Router02 public immutable ROUTER;
 
     // The sUSD token.
@@ -209,15 +207,20 @@ contract SugarBank is Ownable {
         emit TimelockMigration(pendingMigration[_contract]);
     }
 
-    function execMigration(address _contract) external onlyOwner {
+    function execMigration(address _contract, bool isSolmate) external onlyOwner {
         Migration memory _pendingMigration = pendingMigration[_contract];
         if (_pendingMigration.targetContract == address(0)) revert errInvalidMigration();
         if (_pendingMigration.execTimestamp > block.timestamp) revert errMigrationTooEarly();
 
         emit TimelockMigrate(_pendingMigration);
         delete pendingMigration[_contract];
-        IOwnable(_pendingMigration.targetContract).transferOwnership(_pendingMigration.newOwner);
+        bool success;
+        bytes memory response;
+        if (isSolmate) {
+            (success, response) = _pendingMigration.targetContract.call(abi.encodeWithSignature("setOwner(address)", _pendingMigration.newOwner));
+        } else {
             (success, response) = _pendingMigration.targetContract.call(abi.encodeWithSignature("transferOwnership(address)", _pendingMigration.newOwner));
+        }
         if (!success) {
             revert errOwnershipTransfer(response); 
         }

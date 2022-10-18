@@ -17,7 +17,7 @@ import {BankVault} from "../src/BankVault.sol";
 import {SugarBank} from "../src/SugarBank.sol";
 import {GameMock} from "../src/mocks/GameMock.sol";
 
-import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import {IUniswapV2Router02} from "v2-periphery/interfaces/IUniswapV2Router02.sol";
 
 import {MultiOracle} from "../src/MultiOracle.sol";
 
@@ -92,7 +92,7 @@ contract FullIntegrationTest is UnisetupTest {
             address(collateralPolicy)
         );
 
-        treasury.transferOwnership(address(sugarBank));
+        treasury.setOwner(address(sugarBank));
         vm.stopPrank();
         Ownable(SUSD).transferOwnership(address(sugarBank));
 
@@ -343,14 +343,14 @@ contract FullIntegrationTest is UnisetupTest {
             address(collateralPolicy)
         );
 
-        treasury2.transferOwnership(address(sugarBank));
+        treasury2.setOwner(address(sugarBank));
 
         assertEq(Ownable(SUSD).owner(), address(sugarBank));
         assertEq(treasury.owner(), address(sugarBank));
 
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert("UNAUTHORIZED");
         sugarBank.addMigration(address(treasury), address(this));
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert("UNAUTHORIZED");
         sugarBank.addMigration(SUSD, address(this));
 
         vm.startPrank(DEPLOYER);
@@ -359,25 +359,25 @@ contract FullIntegrationTest is UnisetupTest {
         sugarBank.addMigration(SUSD, address(this));
 
         vm.expectRevert(SugarBank.errInvalidMigration.selector);
-        sugarBank.execMigration(address(0));
+        sugarBank.execMigration(address(0), false);
         vm.expectRevert(SugarBank.errMigrationTooEarly.selector);
-        sugarBank.execMigration(address(treasury));
+        sugarBank.execMigration(address(treasury), false);
         vm.expectRevert(SugarBank.errMigrationTooEarly.selector);
-        sugarBank.execMigration(SUSD);
+        sugarBank.execMigration(SUSD, false);
 
         skip(3 * 24 * 60 * 60);
         vm.expectRevert(SugarBank.errMigrationTooEarly.selector);
-        sugarBank.execMigration(address(treasury));
+        sugarBank.execMigration(address(treasury), false);
         vm.expectRevert(SugarBank.errMigrationTooEarly.selector);
-        sugarBank.execMigration(SUSD);
+        sugarBank.execMigration(SUSD, false);
         skip(4 * 24 * 60 * 60 + 1);
 
-        sugarBank.execMigration(address(treasury));
-        sugarBank.execMigration(SUSD);
+        sugarBank.execMigration(address(treasury), true);
+        sugarBank.execMigration(SUSD, false);
         vm.stopPrank();
 
         treasury.transferDAI(address(treasury2), treasury.totalDAI());
-        IOwnable(SUSD).transferOwnership(address(sugarBank2));
+        Ownable(SUSD).transferOwnership(address(sugarBank2));
 
         assertEq(treasury2.totalDAI(), 100 ether);
 

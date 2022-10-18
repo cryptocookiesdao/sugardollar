@@ -7,15 +7,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Owned} from "solmate/auth/Owned.sol";
 
-contract BankVault is Ownable {
+import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
 
+contract BankVault is Owned {
+    
     IERC20 public immutable DAI;
 
-    constructor(address _dai) {
+    constructor(address _dai) Owned(msg.sender) {
         DAI = IERC20(_dai);
     }
 
