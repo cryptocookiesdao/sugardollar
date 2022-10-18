@@ -9,10 +9,12 @@ contract MultiOracleDeployScript is Script {
     function setUp() public {}
 
     function run() public {
-        address multiOracle = 0xD13cCE7F76318eDC9584A6b1c9729776bA67fD84;
+        address multiOracle = 0x6939305B3fd05Dca6Af79fdED8958faC9DB47308;
 
         vm.startBroadcast();
-        new CollateralPolicy(address(multiOracle));
+        address collateralPolicy = address(new CollateralPolicy(multiOracle));
         vm.stopBroadcast();
+
+        console.log("collateralPolicy", collateralPolicy);
     }
 }
