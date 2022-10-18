@@ -7,7 +7,7 @@ import {MultiOracle} from "../src/MultiOracle.sol";
 import {CollateralPolicy} from "../src/CollateralPolicy.sol";
 import {SugarBank} from "../src/SugarBank.sol";
 import {BankVault} from "../src/BankVault.sol";
-import {IOwnable} from "src/interfaces/IOwnable.sol";
+import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 import {IGame} from "src/interfaces/IGame.sol";
 
 contract LocalDeployScript is Script {
@@ -52,8 +52,8 @@ contract LocalDeployScript is Script {
             address(collateralPolicy)
         );
 
-        treasury.transferOwnership(address(sugarBank));
-        IOwnable(SUSD).transferOwnership(address(sugarBank));
+        treasury.setOwner(address(sugarBank));
+        Ownable(SUSD).transferOwnership(address(sugarBank));
         // allow bank to mint cookies
         IGame(GAME).setSugarBankMinter(address(sugarBank));
         vm.stopBroadcast();

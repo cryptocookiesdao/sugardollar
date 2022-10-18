@@ -6,7 +6,7 @@ import "forge-std/Test.sol";
 import {UnisetupTest} from "./utils/UnisetupTest.sol";
 
 import {IERC20, IERC20Burneable} from "src/interfaces/IERC20Burneable.sol";
-import {IOwnable} from "src/interfaces/IOwnable.sol";
+import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 
 import {IOracleSimple} from "../src/interfaces/IOracleSimple.sol";
 import {IGame} from "../src/interfaces/IGame.sol";
@@ -94,7 +94,7 @@ contract FullIntegrationTest is UnisetupTest {
 
         treasury.transferOwnership(address(sugarBank));
         vm.stopPrank();
-        IOwnable(SUSD).transferOwnership(address(sugarBank));
+        Ownable(SUSD).transferOwnership(address(sugarBank));
 
         vm.roll(3);
         skip(60 * 10 + 1);
@@ -345,7 +345,7 @@ contract FullIntegrationTest is UnisetupTest {
 
         treasury2.transferOwnership(address(sugarBank));
 
-        assertEq(IOwnable(SUSD).owner(), address(sugarBank));
+        assertEq(Ownable(SUSD).owner(), address(sugarBank));
         assertEq(treasury.owner(), address(sugarBank));
 
         vm.expectRevert("Ownable: caller is not the owner");

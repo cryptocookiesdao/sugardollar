@@ -10,7 +10,6 @@ import {IGame} from "./interfaces/IGame.sol";
 import {IBankVault} from "./interfaces/IBankVault.sol";
 import {IOracle} from "./interfaces/IOracle.sol";
 import {ICollateralPolicy} from "./interfaces/ICollateralPolicy.sol";
-import {IOwnable} from "./interfaces/IOwnable.sol";
 
 //                                      ___---___
 //                                ___---___---___---___
@@ -120,6 +119,7 @@ contract SugarBank is Ownable {
     error errMaxBurnReach();
     error errSlippageCheck();
     error errPriceError();
+    error errOwnershipTransfer(bytes);
 
     /**
      * EVENTS
@@ -218,6 +218,10 @@ contract SugarBank is Ownable {
         emit TimelockMigrate(_pendingMigration);
         delete pendingMigration[_contract];
         IOwnable(_pendingMigration.targetContract).transferOwnership(_pendingMigration.newOwner);
+            (success, response) = _pendingMigration.targetContract.call(abi.encodeWithSignature("transferOwnership(address)", _pendingMigration.newOwner));
+        if (!success) {
+            revert errOwnershipTransfer(response); 
+        }
     }
 
     // user functions
