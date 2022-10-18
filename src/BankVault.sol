@@ -12,7 +12,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract BankVault is Ownable {
-    using SafeERC20 for IERC20;
 
     IERC20 public immutable DAI;
 
@@ -24,9 +23,11 @@ contract BankVault is Ownable {
         return DAI.balanceOf(address(this));
     }
 
+    // Transfer back Collateral Token (DAI) to account        
     function transferDAI(address account, uint256 amount) external onlyOwner returns (uint256) {
-        // Transfer back Collateral Token (DAI) to account
-        DAI.safeTransfer(account, amount);
+        /// @dev by definition DAI will always work or revert, thats thy i dont use a SafeTransferLib.
+        /// @dev please see https://github.com/makerdao/dss/blob/master/src/dai.sol#L89
+        DAI.transfer(account, amount);
         return amount;
     }
 }

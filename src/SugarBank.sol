@@ -47,7 +47,6 @@ import {ICollateralPolicy} from "./interfaces/ICollateralPolicy.sol";
 /// @title SugarBank
 /// @dev This contract manages the minting and redeeming of sUSD tokens.
 contract SugarBank is Ownable {
-    using SafeERC20 for IERC20;
 
     IUniswapV2Router02 public immutable ROUTER;
 
@@ -237,7 +236,9 @@ contract SugarBank is Ownable {
             return;
         }
 
-        DAI.safeTransferFrom(msg.sender, address(this), _amountDAItoCkie);
+        /// @dev by definition DAI will always work or revert, thats thy i dont use a SafeTransferLib.
+        /// @dev please see https://github.com/makerdao/dss/blob/master/src/dai.sol#L89
+        DAI.transferFrom(msg.sender, address(this), _amountDAItoCkie);
 
         uint256[] memory amounts =
             ROUTER.swapExactTokensForTokens(_amountDAItoCkie, 0, _pathDaiCkie, msg.sender, block.timestamp + 60);
@@ -277,7 +278,9 @@ contract SugarBank is Ownable {
 
             if (daiToTransfer == 0) revert errPriceError();
 
-            DAI.safeTransferFrom(msg.sender, address(TREASURY), daiToTransfer);
+            /// @dev by definition DAI will always work or revert, thats thy i dont use a SafeTransferLib.
+            /// @dev please see https://github.com/makerdao/dss/blob/master/src/dai.sol#L89
+            DAI.transferFrom(msg.sender, address(TREASURY), daiToTransfer);
         } else {
             uint256 cookieUSDPrice = oracle.cookiePrice();
             amountToMint = (_amountDAI * daiPrice) / _tcr;
@@ -293,7 +296,9 @@ contract SugarBank is Ownable {
             _amountDAI = (amountToMint * _tcr) / (daiPrice);
 
             if (_amountDAI == 0) revert errPriceError();
-            DAI.safeTransferFrom(msg.sender, address(TREASURY), _amountDAI);
+            /// @dev by definition DAI will always work or revert, thats thy i dont use a SafeTransferLib.
+            /// @dev please see https://github.com/makerdao/dss/blob/master/src/dai.sol#L89
+            DAI.transferFrom(msg.sender, address(TREASURY), _amountDAI);
 
             if (_amountCOOKIE > 0) {
                 CKIE.burnFrom(msg.sender, _amountCOOKIE);
