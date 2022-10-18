@@ -37,7 +37,10 @@ This ratio will start in 100%, and every 10 minutes will;
 
 
 
-
+### Deploying command sample
+```sh
+forge script script/SCRIPT.sol --rpc-url RPCURL -i 1 --broadcast --sender 0xdA001205EE0E9c0a7a6Cc3FDa137008e7e5bB818 --etherscan-api-key APIKEY  --verify
+```
 ---
 
 ### Deployed contracts
